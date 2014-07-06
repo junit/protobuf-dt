@@ -1,0 +1,303 @@
+/*
+ * Copyright (c) 2011 Google Inc.
+ *
+ * All rights reserved. This program and the accompanying materials are made available under the terms of the Eclipse
+ * Public License v1.0 which accompanies this distribution, and is available at
+ *
+ * http://www.eclipse.org/legal/epl-v10.html
+ * 
+ * Author: alruiz@google.com (Alex Ruiz)
+ */
+grammar com.google.eclipse.protobuf.Protobuf hidden(WS, ML_COMMENT, SL_COMMENT)
+
+import "http://www.eclipse.org/emf/2002/Ecore" as ecore
+generate protobuf "http://www.google.com/eclipse/protobuf/Protobuf"
+
+Protobuf:
+  (syntax=Syntax)?
+  (elements+=ProtobufElement)*;
+
+Syntax:
+  'syntax' '=' name=STRING (';')+;
+
+ProtobufElement:
+  Package | Import | Option | ComplexType | TypeExtension | Service;
+
+Package:
+  'package' name=PackageName (';')+;
+
+PackageName:
+  IdOrReservedWord ('.' IdOrReservedWord)*;
+
+Import:
+  NormalImport | PublicImport | WeakImport;
+
+NormalImport:
+  'import' importURI=STRING (';')+;
+
+PublicImport:
+  'import' 'public' importURI=STRING (';')+;
+
+WeakImport:
+  'import' 'weak' importURI=STRING (';')+;
+
+ComplexType:
+  Enum | ExtensibleType;
+
+Message:
+  'message' name=Name '{'
+  elements+=MessageElement*
+  '}' (';')?;
+
+MessageElement:
+  Option | Extensions | ComplexType | MessageField | TypeExtension | OneOf;
+
+Range:
+  from=LONG ('to' to=RangeMax)?;
+
+RangeMax:
+  LONG | 'max';
+
+Group:
+  modifier=Modifier 'group' name=Name '=' index=(LONG | HEX)
+  ('[' (fieldOptions+=FieldOption (',' fieldOptions+=FieldOption)*) ']')? '{'
+  elements+=GroupElement*
+  '}' (';')?;
+
+UnmodifiedGroup returns Group:
+  =>'group' name=Name '=' index=(LONG | HEX)
+  ('[' (fieldOptions+=FieldOption (',' fieldOptions+=FieldOption)*) ']')? '{'
+  elements+=GroupElement*
+  '}' (';')?;
+
+GroupElement:
+  Option | IndexedElement | ComplexType | TypeExtension | Extensions;
+
+OneOf:
+  (isRepeated?='repeated')? 'oneof' name=Name '{'
+  elements+=OneOfElement+
+  '}' (';')?;
+
+OneOfElement returns MessageElement:
+  Extensions | UnmodifiedGroup | UnmodifiedMessageField;
+
+Extensions:
+  'extensions' ranges+=Range (',' ranges+=Range)* (';')+;
+
+MessageField:
+  =>modifier=Modifier type=TypeLink name=Name '=' index=(LONG | HEX)
+  ('[' (fieldOptions+=FieldOption (',' fieldOptions+=FieldOption)*)? ']')? (';')+;
+
+UnmodifiedMessageField returns MessageField:
+  type=TypeLink name=Name '=' index=(LONG | HEX)
+  ('[' (fieldOptions+=FieldOption (',' fieldOptions+=FieldOption)*)? ']')? (';')+;
+
+enum Modifier:
+  optional | required | repeated;
+
+TypeLink:
+  ScalarTypeLink | ComplexTypeLink;
+
+ScalarTypeLink:
+  target=ScalarType;
+
+enum ScalarType:
+  double | float | int32 | int64 | uint32 | uint64 | sint32 | sint64 | fixed32 | fixed64 | sfixed32 | sfixed64 | bool |
+  string | bytes;
+
+ComplexTypeLink:
+  target=[ComplexType|QualifiedName];
+
+Enum:
+  =>'enum' name=Name '{'
+  elements+=EnumElement*
+  '}' ';'?;
+
+EnumElement:
+  Option | Literal;
+
+Literal:
+  name=Name '=' index=(LONG | HEX) 
+  ('[' fieldOptions+=FieldOption (',' fieldOptions+=FieldOption)* ']')? (';')+;
+
+terminal HEX returns ecore::ELong:
+  ('-')? '0' ('x' | 'X') (NUMBER | 'a'..'f' | 'A'..'F')+;
+
+TypeExtension:
+  =>'extend' type=ExtensibleTypeLink '{'
+  elements+=MessageElement*
+  '}' (';')?;
+
+ExtensibleTypeLink:
+  target=[ExtensibleType|QualifiedName];
+
+ExtensibleType:
+  Message | Group;
+
+Service:
+  'service' name=Name '{'
+  (elements+=ServiceElement)*
+  '}' (';')?;
+
+ServiceElement:
+  Option | Rpc | Stream;
+
+Rpc:
+  'rpc' name=Name '(' argType=MessageLink ')' 'returns' '(' returnType=MessageLink ')'
+  (('{' options+=Option* '}') (';')? | (';')+);
+
+Stream:
+  'stream' name=Name '(' clientMessage=MessageLink ',' serverMessage=MessageLink ')'
+  (('{' options+=Option* '}') (';')? | (';')+);
+
+Name:
+  IdOrReservedWord;
+
+IdOrReservedWord: 
+  ID | ReservedWord;
+
+MessageLink:
+  target=[Message|QualifiedName];
+
+AbstractOption:
+  Option | FieldOption;
+
+AbstractCustomOption:
+  CustomOption | CustomFieldOption;
+
+Option:
+  NativeOption | CustomOption;
+
+NativeOption:
+  'option' source=OptionSource '=' value=Value (';')+;
+
+CustomOption:
+  'option' '(' source=OptionSource ')'
+  ('.' fields+=OptionField ('.' fields+=OptionField)*)? '=' value=Value (';')+;
+ 
+FieldOption:
+  DefaultValueFieldOption | NativeFieldOption | CustomFieldOption;
+
+DefaultValueFieldOption:
+  =>'default' '=' value=Value;
+
+NativeFieldOption:
+  source=OptionSource '=' value=Value;
+
+CustomFieldOption:
+  '(' source=OptionSource ')'
+  ('.' fields+=OptionField ('.' fields+=OptionField)*)? '=' value=Value;
+
+OptionSource:
+  target=[IndexedElement|QualifiedName];
+
+OptionField:
+  MessageOptionField | '(' ExtensionOptionField ')';
+
+MessageOptionField:
+  target=[IndexedElement|Name];  
+
+ExtensionOptionField:
+  target=[IndexedElement|QualifiedName];
+
+IndexedElement:
+  =>MessageField | Group;
+
+Value:
+  ComplexValue | SimpleValueLink;
+
+ComplexValue:
+  ComplexValueCurlyBracket | ComplexValueAngleBracket;
+
+// { foo: 1, bar: 2 }
+ComplexValueCurlyBracket:
+  '{' {ComplexValueCurlyBracket} (fields+=ValueField (',')?)* '}';
+
+// < foo: 1, bar: 2 >
+ComplexValueAngleBracket:
+  '<' {ComplexValueAngleBracket} (fields+=ValueField (',')?)* '>';
+
+ValueField:
+  SimpleValueField | ComplexValueField;
+
+SimpleValueField:
+  name=FieldName ':' value=SimpleValueLink ';'?;
+
+ComplexValueField:
+  name=FieldName ':'? values=ComplexValue ';'?;
+
+FieldName:
+  NormalFieldName | ExtensionFieldName;
+
+NormalFieldName:
+  target=[IndexedElement|Name];
+
+ExtensionFieldName:
+  '[' target=[IndexedElement|QualifiedName] ']';
+
+QualifiedName:
+  '.'? SafeId ('.' (WS)* SafeId)*;
+
+SafeId:
+  ID | SafeReservedWord;
+  
+ReservedWord:  
+  SafeReservedWord | 'group' | 'oneof';
+
+SafeReservedWord:
+  'package' | 'import' | 'public' | 'option' | 'extend' | 'message' | 'optional' | 'required' | 'repeated' |
+  'enum' | 'service' | 'rpc' | 'stream' | 'returns' | 'default' | 'extensions' | 'to' | 'max' | 'true' | 'false' |
+  'double' | 'float' | 'int32' | 'int64' | 'uint32' | 'uint64' | 'sint32' | 'sint64' | 'fixed32' | 'fixed64' |
+  'sfixed32' | 'sfixed64' | 'bool' | 'string' | 'bytes' | 'weak';
+
+SimpleValueLink:
+  LiteralLink | BooleanLink | NumberLink | StringLink;
+
+LiteralLink:
+  target=[Literal];
+
+BooleanLink:
+  target=BOOL;
+
+enum BOOL:
+  true | false;
+
+NumberLink:
+  HexNumberLink | LongLink | DoubleLink;
+
+HexNumberLink:
+  target=HEX;
+
+LongLink:
+  target=LONG;
+
+terminal LONG returns ecore::ELong:
+  ('-')? (NUMBER)+;
+
+DoubleLink:
+  target=DOUBLE;
+
+terminal DOUBLE returns ecore::EDouble:
+  ('-')? (NUMBER)* ('.' (NUMBER)+)? |
+  ('-')? (NUMBER)+ ('.') | 
+  ('-')? (NUMBER)+ ('.' (NUMBER)*)? (('e'|'E')('-'|'+')? (NUMBER)+) | 
+  'nan' | 'inf' | '-inf';
+
+terminal NUMBER:
+  '0'..'9';
+
+StringLink:
+  target=STRING;
+
+terminal STRING:
+  SL_STRING (SL_STRING)*;
+
+terminal SL_STRING:
+  '"' ('\\' ('"' | "'" | '\\' | !('\\' | '"')) | !('\\' | '"'))* '"' (WS)* |
+  "'" ('\\' ('"' | "'" | '\\' | !('\\' | "'")) | !('\\' | "'"))* "'" (WS)*;
+
+terminal ID: '^'?('a'..'z'|'A'..'Z'|'_') ('a'..'z'|'A'..'Z'|'_'|'0'..'9')*;
+terminal ML_COMMENT: '/*' -> '*/';
+terminal SL_COMMENT: '//' !('\n'|'\r')* ('\r'? '\n')?;
+terminal WS: (' '|'\t'|'\r'|'\n')+;
+terminal ANY_OTHER: .;
