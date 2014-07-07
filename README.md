@@ -8,5 +8,5 @@ This plug-in requires [Eclipse 3.7](http://eclipse.org/downloads/index-developer
 
 ###Install the plug-in
 1. install Xtext 2.3.0 from the update site http://download.eclipse.org/modeling/tmf/xtext/updates/composite/releases/
-2. download [com.google.eclipse.protobuf.ui_1.5.3.201407070245.jar](https://github.com/junit/protobuf-dt/blob/master/update-site/plugins/com.google.eclipse.protobuf.ui_1.5.3.201407070245.jar) and [com.google.eclipse.protobuf_1.5.3.201407070245.jar](https://github.com/junit/protobuf-dt/blob/master/update-site/plugins/com.google.eclipse.protobuf_1.5.3.201407070245.jar) directly into your "%ECLIPST%/plugins" floder
-3. start/restart eclipse
+2. install portobuf-dt from the update site http://www.chinasb.org/update-site/site.xml
+3. (re)start eclipse
