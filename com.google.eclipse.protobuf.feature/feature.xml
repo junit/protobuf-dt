@@ -2,10 +2,10 @@
 <feature
       id="com.google.eclipse.protobuf"
       label="%featureName"
-      version="1.5.2.qualifier"
+      version="1.5.3.qualifier"
       provider-name="%providerName">
 
-   <description url="https://code.google.com/p/protobuf-dt/">
+   <description url="https://github.com/junit/protobuf-dt">
       %description
    </description>
 
@@ -18,7 +18,7 @@
    </license>
 
    <url>
-      <update label="%updateSiteName" url="http://protobuf-dt.googlecode.com/git/update-site"/>
+      <update label="%updateSiteName" url="http://junit.github.io/protobuf-dt/git/update-site"/>
    </url>
 
    <requires>
